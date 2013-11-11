@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+
+require 'rainbow'
+require 'logger'
+require 'mechanize'
+require 'getoptlong'
+require 'codesake/squilla'
+require 'codesake-commons'
+
+APPNAME = File.basename($0)
+
+options = {:exploit_url=>false, 
+  :debug=>false, 
+  :oneshot=>false, 
+  :sample_post=>"", 
+  :parameter_to_tamper=>"", 
+  :auth=>{:username=>nil, :password=>nil},
+  :target=>"",
+  :payloads=>[]
+}
+
+
+$logger = Codesake::Commons::Logging.instance
+$logger.helo APPNAME, Codesake::Squilla::VERSION
+
+$logger.toggle_syslog
+$logger.die "missing target" if ARGV.length != 1
+
+options[:payloads] = Codesake::Squilla::Payload::Mysql.where
+options[:target] = ARGV.shift
+engine = Codesake::Squilla::Engine.instance
+engine.start(options)
+
+found = false
+
+engine.inject
+$logger.log "#{engine.payloads.count} attack payloads sent"
+
