@@ -1,6 +1,10 @@
-# Codesake::Squilla
+# Squilla - a SQL injection detecting engine
 
-TODO: Write a gem description
+Payload taken from https://github.com/rustyrobot/fuzzdb but the original
+credits is for
+http://funoverip.net/2010/12/blind-sql-injection-detection-with-burp-suite/
+
+
 
 ## Installation
 
