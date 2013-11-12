@@ -24,7 +24,7 @@ module Codesake
       ## XXX: similiar as cross
       def start(options = {:exploit_url=>false, :debug=>false, :oneshot=>false, :sample_post=>"", :parameter_to_tamper=>"", :auth=>{:username=>nil, :password=>nil}, :target=>"", :payloads=>[]})
         @agent = Mechanize.new {|a| a.log = Logger.new(create_log_filename(options[:target]))}
-        @agent.user_agent_alias = 'Mac Safari'
+        @agent.user_agent = "codesake-squilla v#{Codesake::Squilla::VERSION}"
         @agent.agent.http.verify_mode = OpenSSL::SSL::VERIFY_NONE
         @options = options
         @target = options[:target]
@@ -41,29 +41,45 @@ module Codesake
         $logger.log "Authenticating to the app using #{@options[:auth][:username]}:#{@options[:auth][:password]}" if debug? && authenticate?
 
         @agent.add_auth(@target, @options[:auth][:username], @options[:auth][:password]) if authenticate?
-        begin
-          page = @agent.get(@target)
-        rescue Mechanize::UnauthorizedError
-          $logger.err 'Authentication failed. Giving up.'
-          return false
-        rescue Mechanize::ResponseCodeError
-          $logger.err 'Server gave back 404. Giving up.'
-          return false
-        rescue Net::HTTP::Persistent::Error => e
-          $logger.err e.message
-          return false
-        end
 
+        if @options[:exploit_url]
+          # You ask to exploit the url, so I won't check for form values
 
-        if page.forms.size == 0
-          $logger.log "no forms found, please try to exploit #{@target} with the -u flag"
-          return false
+          theurl= Codesake::Core::Url.new(@target)
+
+          attack_url(theurl, @payloads[SecureRandom.random_number(@payloads.size)]) if oneshot?
+
+          if ! oneshot?
+            @payloads.each do |pattern|
+              attack_url(theurl, pattern)
+            end
+          end
+
         else
-          $logger.log "#{page.forms.size} form(s) found" if debug?
-        end
+          begin
+            page = @agent.get(@target)
+          rescue Mechanize::UnauthorizedError
+            $logger.err 'Authentication failed. Giving up.'
+            return false
+          rescue Mechanize::ResponseCodeError
+            $logger.err 'Server gave back 404. Giving up.'
+            return false
+          rescue Net::HTTP::Persistent::Error => e
+            $logger.err e.message
+            return false
+          end
 
-        @payloads.each do |pattern|
-          attack_form(page, pattern)
+
+          if page.forms.size == 0
+            $logger.log "no forms found, please try to exploit #{@target} with the -u flag"
+            return false
+          else
+            $logger.log "#{page.forms.size} form(s) found" if debug?
+          end
+
+          @payloads.each do |pattern|
+            attack_form(page, pattern)
+          end
         end
         @results.empty?
       end
@@ -73,12 +89,26 @@ module Codesake
       private
 
       ## XXX private section is equal to cross
-      
+
       def debug?
         @options[:debug]
       end
       def authenticate?
         ! ( @options[:auth][:username].nil?  &&  @options[:auth][:password].nil? )
+      end
+
+
+      def attack_url(url = Codesake::Core::Url.new, pattern)
+        $logger.log "using attack vector: #{pattern}" if debug?
+        url.params.each do |par|
+
+          page = @agent.get(url.fuzz(par[:name],pattern))
+          @agent.log.debug(page.body) if debug?
+
+          url.reset
+        end
+
+        false
       end
 
 

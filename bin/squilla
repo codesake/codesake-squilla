@@ -13,7 +13,8 @@ opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--version', '-v', GetoptLong::NO_ARGUMENT ],
   [ '--db', '-d', GetoptLong::REQUIRED_ARGUMENT],
-  [ '--attacking-sql-keyword', '-A', GetoptLong::REQUIRED_ARGUMENT]
+  [ '--attacking-sql-keyword', '-A', GetoptLong::REQUIRED_ARGUMENT], 
+  [ '--exploit-url', '-u', GetoptLong::NO_ARGUMENT]
 )
 
 trap("INT") { $logger.die "SIGINT detected. Giving up" }
@@ -47,6 +48,9 @@ opts.each do |opt, arg|
     database = arg 
   when '--attacking-sql-keyword'
     keyword = arg
+  when '--exploit-url'
+    options[:exploit_url]=true
+
   end
 end
 
