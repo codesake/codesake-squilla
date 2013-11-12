@@ -9,6 +9,15 @@ require 'codesake-commons'
 
 APPNAME = File.basename($0)
 
+opts = GetoptLong.new(
+  [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
+  [ '--version', '-v', GetoptLong::NO_ARGUMENT ],
+  [ '--db', '-d', GetoptLong::REQUIRED_ARGUMENT],
+  [ '--attacking-sql-keyword', '-A', GetoptLong::REQUIRED_ARGUMENT]
+)
+
+trap("INT") { $logger.die "SIGINT detected. Giving up" }
+
 options = {:exploit_url=>false, 
   :debug=>false, 
   :oneshot=>false, 
@@ -19,12 +28,35 @@ options = {:exploit_url=>false,
   :payloads=>[]
 }
 
+database = "mysql"
+keyword = "where"
+
+opts.each do |opt, arg| 
+  case opt
+  when '--help'
+    puts "usage: squilla [-dAvh] target"
+    puts "     -d [mysql,mssql,pgsql]: tells squilla the DB vendor. Supported ones are MySQL, MSSQL and PostgreSQL"
+    puts "     -A [where, insert, order_by]: tells squilla the payload to use based on the SQL keyword you want to trigger"
+    puts "     -v: shows version"
+    puts "     -h: this help"
+    exit 0
+  when '--version'
+    puts "cross " + Cross::VERSION + " (C) 2011, 2012 - paolo@armoredcode.com"
+    exit 0
+  when '--db'
+    database = arg 
+  when '--attacking-sql-keyword'
+    keyword = arg
+  end
+end
 
 $logger = Codesake::Commons::Logging.instance
 $logger.helo APPNAME, Codesake::Squilla::VERSION
 
 $logger.toggle_syslog
 $logger.die "missing target" if ARGV.length != 1
+$logger.die "unsupported database: #{database}" if database != "mysql" && database != "mssql" && database != "pgsql"
+$logger.die "invalid SQL keyword: #{keyword}" if keyword != "insert" && keyword != "where" && keyword != "order_by"
 
 options[:payloads] = Codesake::Squilla::Payload::Mysql.where
 options[:target] = ARGV.shift

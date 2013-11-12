@@ -9,8 +9,9 @@ module Codesake
       include Singleton
 
       attr_reader :payloads
+      attr_accessor :options
 
-      ## XXX: same as cross
+      ## XXX: similiar as cross... only the name prefix change
       def create_log_filename(target)
         begin
           return "squilla_#{URI.parse(target).hostname.gsub('.', '_')}_#{Time.now.strftime("%Y%m%d")}.log"
@@ -28,6 +29,7 @@ module Codesake
         @options = options
         @target = options[:target]
         @payloads = options[:payloads]
+        @options = options
         @results = []
       end 
 
@@ -71,6 +73,15 @@ module Codesake
       private
 
       ## XXX private section is equal to cross
+      
+      def debug?
+        @options[:debug]
+      end
+      def authenticate?
+        ! ( @options[:auth][:username].nil?  &&  @options[:auth][:password].nil? )
+      end
+
+
       def attack_form(page = Mechanize::Page.new, pattern)
         $logger.log "using attack vector: #{pattern}" if debug?
 
@@ -86,27 +97,13 @@ module Codesake
             end
           end
 
-          pp = @agent.submit(f)
-          $logger.log "header: #{pp.header}" if debug? && ! pp.header.empty?
-          $logger.log "body: #{pp.body}" if debug? && ! pp.body.empty?
-          $logger.err "Page is empty" if pp.body.empty?
-          scripts = pp.search("//script")
-          scripts.each do |sc|
-            if sc.children.text.include?("alert(#{Cross::Attack::XSS::CANARY})")
-              $logger.log(page.body) if @debug
-              @results << {:page=>page.uri.to_s, :method=>:post, :evidence=>sc.children.text}
-              return true 
-            end
-          end
-
-          # This is for input html field javascript event evasion
-          inputs = pp.search("//input")
-          inputs.each do |input|
-            if ! input['onmouseover'].nil? && input['onmouseover'].include?("alert(#{Cross::Attack::XSS::CANARY})")
-              $logger.log(page.body) if @debug
-              @results << {:page=>page.uri.to_s, :method=>:post, :evidence=> input['onmouseover']}
-              return true  
-            end
+          begin
+            pp = @agent.submit(f)
+            $logger.log "header: #{pp.header}" if debug? && ! pp.header.empty?
+            $logger.log "body: #{pp.body}" if debug? && ! pp.body.empty?
+            $logger.err "Page is empty" if pp.body.empty?
+          rescue => e
+            return false
           end
         end 
 
